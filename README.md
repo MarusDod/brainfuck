@@ -25,9 +25,10 @@ Commands:
 -> "]" : end of loop
 
 
-To compile: ./brainfuck ${filename}
+To compile: ./brainfuck filename
  
-./brainfuck hello.bf
+Example: ./brainfuck hello.bf
+
 hello world!
 
 Use this at your own risk
