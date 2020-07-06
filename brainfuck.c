@@ -8,6 +8,20 @@
 #include <stdint.h>
 #include <assert.h>
 
+#define TEXT_LIMIT 30000
+#define LOOP_LIMIT 20
+
+int get_next_matching_bracket(uint8_t* buffer,int* i){
+	int left_count=0;
+	while(*(buffer+(*i)) && *(buffer+(*i))!=EOF){
+		if(*(buffer+(*i))=='[') left_count++;
+		else if(*(buffer+(*i))==']') left_count--;
+		if(!left_count && *(buffer+(*i))==']') return 1;
+		 (*i)++;
+	}
+	return 0;
+}
+
 char* get_extension(char* filename){
 	while(*filename && *filename++!='.');
 	return filename;
@@ -21,11 +35,11 @@ if(argc==1){
 	exit(1);
 } 
 
-uint8_t vec[10000];	//stack
+uint8_t vec[TEXT_LIMIT];	//stack
 uint8_t* cur=vec;	//stack pointer
 
-uint8_t loop_stack[20];	//tracks location of last square bracket
-memset(loop_stack,0,20);
+uint8_t loop_stack[LOOP_LIMIT];	//tracks location of last square bracket
+memset(loop_stack,-1,LOOP_LIMIT);
 uint8_t* lsp=loop_stack;//loop stack pointer
 
 char* filename=argv[1];
@@ -53,25 +67,36 @@ read(fd,buffer,fsize);
 close(fd);
 
 for(i=0;i<fsize;i++){
+
+	//fprintf(stderr,"%c - ",*(buffer+i));
+
 	switch(*(buffer+i)){	
 		case '>':cur++;break;	//move stack pointer up
 		case '<':cur--;break;	//move stack pointer down
 		case '+':(*cur)++;break;	//increase value at address
 		case '-':(*cur)--;break;	//decrease
-		case '.':putc(*cur,stdout);break;	//output ascii code value
-		case ',':*cur=getchar();break;	//get input
-		case '[':*lsp++=i;break;	//save offset of loop
+		case '.':putchar(*cur);break;	//output ascii code value
+		case ',':(*cur)=getchar();break;	//get input
+		case '[':
+			*lsp++=i;//push current offset to loop stack
+			if(*cur) break;	//if current stack pointer is different than 0, continue
+			else if(!get_next_matching_bracket(buffer,&i)) goto end;	//else move on to the next matching bracket
 		case ']':			
-			if(*cur==0) lsp--;	//if current value is 0 proceed
-			else i=*(lsp-1);	//else get last value
-			break;
+			--lsp;		//decrement loop stack
+			if(*cur)	i=(*lsp)-1;	//pop value from loop stack, if current is not 0
+			(*lsp)=-1;
+		default:break;
 	}
-	assert((uint64_t) cur>= (uint64_t) vec);//stack pointers must always be within range
-	assert((uint64_t) lsp>= (uint64_t) loop_stack);
+
+	//fprintf(stderr,"%d - %u\n",*cur,i);
+
+	assert(((uint64_t) cur>= (uint64_t) vec) && ((uint64_t) cur < (uint64_t) vec+TEXT_LIMIT));//stack pointers must always be within range
+	assert(((uint64_t) lsp>= (uint64_t) loop_stack) && ((uint64_t) lsp < (uint64_t) loop_stack+LOOP_LIMIT));
 }
 
-free(buffer);
-return 0;
+end:
+	free(buffer);
+	return 0;
 }
 
 
